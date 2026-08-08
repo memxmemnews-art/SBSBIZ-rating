@@ -177,8 +177,8 @@ if st.button("그래프 그리기", key="btn3"):
             ax.yaxis.set_major_locator(ticker.MultipleLocator(0.05))
             ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.3f'))
             
-            # [핵심 수정] 기준 개수를 25개에서 50개로 늘려, 시간과 시간 사이에 정확히 한 줄이 더 표시되도록 밀도를 높였습니다.
-            num_labels = 50
+            # [핵심 수정] 최대 표시 개수를 40개로 조정했습니다.
+            num_labels = 40
             step = max(1, len(df3['시간']) // num_labels)
             
             ax.set_xticks(range(0, len(df3['시간']), step))
