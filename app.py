@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+import math  # [핵심 추가] 정확한 올림 계산을 위한 수학 라이브러리
 
 st.title("📊 통합 데이터 자동 분석기")
 
 # ==========================================
 # [공통 기능] 텍스트 데이터 파서 및 입력칸 초기화 로직
 # ==========================================
-# [핵심 추가] 입력칸을 찌꺼기 없이 완벽하게 비워주는 콜백(Callback) 함수
 def clear_text(key):
     st.session_state[key] = ""
 
@@ -49,7 +49,6 @@ st.write("엑셀 데이터를 드래그하여 복사(Ctrl+C)한 뒤, 아래에 �
 
 pasted_data_1 = st.text_area("시청률 분석용 데이터 붙여넣기", height=150, key="paste1")
 
-# [수정] 버튼을 가로로 예쁘게 배치하고 지우기 단추 추가
 col1, col2, col3 = st.columns([2, 2, 6])
 with col1:
     run1 = st.button("시청률 분석 실행", key="btn1", use_container_width=True)
@@ -95,7 +94,6 @@ st.write("엑셀 데이터를 드래그하여 복사(Ctrl+C)한 뒤, 아래에 �
 
 pasted_data_2 = st.text_area("전략 시간대 분석용 데이터 붙여넣기", height=150, key="paste2")
 
-# [수정] 버튼을 가로로 예쁘게 배치하고 지우기 단추 추가
 col1, col2, col3 = st.columns([2, 2, 6])
 with col1:
     run2 = st.button("전략 시간대 분석 실행", key="btn2", use_container_width=True)
@@ -158,7 +156,6 @@ st.write("시간대별 시청률 데이터를 드래그하여 복사(Ctrl+C)한 
 
 pasted_data_3 = st.text_area("그래프 분석용 데이터 붙여넣기", height=150, key="paste3")
 
-# [수정] 버튼을 가로로 예쁘게 배치하고 지우기 단추 추가
 col1, col2, col3 = st.columns([2, 2, 6])
 with col1:
     run3 = st.button("그래프 그리기", key="btn3", use_container_width=True)
@@ -202,8 +199,9 @@ if run3:
             ax.yaxis.set_major_locator(ticker.MultipleLocator(0.05))
             ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.3f'))
             
+            # [핵심 수정] 무조건 올림(math.ceil)을 적용하여 간격이 1로 뭉개지는 현상을 완벽히 차단합니다.
             num_labels = 40
-            step = max(1, len(df3['시간']) // num_labels)
+            step = max(1, math.ceil(len(df3['시간']) / num_labels))
             
             ax.set_xticks(range(0, len(df3['시간']), step))
             ax.set_xticklabels(df3['시간'].iloc[::step], rotation=90, fontsize=9)
