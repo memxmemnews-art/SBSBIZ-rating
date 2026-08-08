@@ -147,20 +147,21 @@ if st.button("그래프 그리기", key="btn3"):
         if not df3.empty:
             st.subheader("📈 시간대별 시청률 추이")
             
-            # [수정 사항 1] 도화지(figsize) 가로 길이를 10에서 12로 늘려 글씨 겹침 방지
-            fig, ax = plt.subplots(figsize=(12, 4))
+            # [수정 1] 도화지 크기를 원본 비율(10)로 되돌림
+            fig, ax = plt.subplots(figsize=(10, 4))
             
             ax.plot(df3['시간'], df3['시청률'], color='#5B9BD5', linewidth=2.5)
             
-            # 최고/최저 시청률 데이터 찾기
             max_idx = df3['시청률'].idxmax()
             max_val = df3['시청률'].max()
             min_val = df3['시청률'].min()
             
-            # [수정 사항 2] Y축 상단/하단에 20%의 여유 공간(padding)을 주어 동그라미가 잘리지 않게 함
+            # 원이 잘리지 않도록 상단 여유 공간 유지
             padding = (max_val - min_val) * 0.2
             if padding == 0: padding = 0.1
-            ax.set_ylim(bottom=min_val - padding, top=max_val + padding)
+            
+            # Y축이 0 이하로 내려가지 않도록 방어 로직 포함
+            ax.set_ylim(bottom=max(0, min_val - padding), top=max_val + padding)
             
             ax.scatter(max_idx, max_val, s=600, facecolors='none', edgecolors='red', linewidths=2, linestyles='--')
             
@@ -176,9 +177,17 @@ if st.button("그래프 그리기", key="btn3"):
             ax.spines['right'].set_visible(False)
             ax.spines['left'].set_visible(False)
             
-            # [수정 사항 3] 건너뛰는 로직을 삭제하고, 모든 데이터(1분 간격)를 강제로 X축에 표시
-            ax.set_xticks(range(len(df3['시간'])))
-            ax.set_xticklabels(df3['시간'], rotation=90, fontsize=9)
+            # [수정 2] Y축 눈금 간격을 무조건 0.05 단위로 맞추고 소수점 3자리(.000)로 통일
+            ax.yaxis.set_major_locator(ticker.MultipleLocator(0.05))
+            ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%.3f'))
+            
+            # [수정 3] 글씨가 겹치지 않는 선(최대 25개)에서 알아서 최적의 표시 간격을 계산
+            num_labels = 25
+            step = max(1, len(df3['시간']) // num_labels)
+            
+            # 계산된 step 간격으로 X축 눈금 찍기
+            ax.set_xticks(range(0, len(df3['시간']), step))
+            ax.set_xticklabels(df3['시간'].iloc[::step], rotation=90, fontsize=9)
             
             plt.yticks(fontsize=9)
             
