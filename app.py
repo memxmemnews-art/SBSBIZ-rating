@@ -10,7 +10,6 @@ st.title("📊 통합 데이터 자동 분석기")
 # [공통 기능] 데이터 파서 및 입력칸 초기화 로직
 # ==========================================
 def clear_texts(keys):
-    # [업그레이드] 여러 개의 입력칸을 한 번에 모두 안전하게 비워주는 로직
     for key in keys:
         if key in st.session_state:
             if "upload" in key:
@@ -34,12 +33,11 @@ def parse_pasted_data(pasted_text):
     return pd.DataFrame(data_list)
 
 # ==========================================
-# 1️⃣ [첫 번째 기능] 시청률 분석 (보고서 표 생성)
+# 1️⃣ [첫 번째 기능] 시청률 분석 (엑셀 양식 완벽 재현)
 # ==========================================
 st.header("1️⃣ 채널 순위 및 시청률")
 st.write("각 일자별 데이터와 누적 데이터를 넣으면 통합 표를 생성합니다. (날짜를 입력하지 않은 칸은 표에서 제외됩니다.)")
 
-# [수정] 4개의 입력칸을 보기 좋게 배치
 col1, col2, col3 = st.columns(3)
 with col1:
     date_1 = st.text_input("일자 1 (예: 8/7 (금))", key="date1")
@@ -57,7 +55,6 @@ btn_col1, btn_col2, _ = st.columns([2, 2, 6])
 with btn_col1:
     run1 = st.button("시청률 표 생성", key="btn1", use_container_width=True)
 with btn_col2:
-    # 7개의 칸(날짜 3개 + 데이터 4개)을 한 번에 지웁니다.
     keys_to_clear = ["date1", "paste_day1", "date2", "paste_day2", "date3", "paste_day3", "paste_acc"]
     st.button("데이터 지우기 🗑️", key="clear1", on_click=clear_texts, args=(keys_to_clear,), use_container_width=True)
 
@@ -65,7 +62,6 @@ if run1:
     targets = ['SBS Biz', 'YTN', '연합뉴스TV', '한국경제TV']
     table_data = {'채널': targets}
     
-    # 엑셀과 동일한 '00위 (0.000)' 형식으로 포맷팅하는 함수
     def get_channel_stat(df, ch):
         res = df[df['채널명'] == ch]
         if not res.empty:
@@ -94,33 +90,113 @@ if run1:
         if not df_acc.empty:
             table_data['26년 누적'] = [get_channel_stat(df_acc, ch) for ch in targets]
             
-    # [요청 반영] 25년 실적 항목은 이미지와 동일한 수치로 고정 출력
+    # 25년 실적 데이터 고정
     table_data['25년 실적\n(12/31 기준)'] = [
-        "23위 (0.122)", # SBS Biz
-        "2위 (0.795)",  # YTN
-        "4위 (0.691)",  # 연합뉴스TV
-        "50위 (0.056)"  # 한국경제TV
+        "23위 (0.122)", 
+        "2위 (0.795)",  
+        "4위 (0.691)",  
+        "50위 (0.056)"  
     ]
     
     st.markdown("##### 1. 채널 순위 및 시청률 (종편 및 케이블 채널 210개)")
     
-    # 이미지와 똑같이 왼쪽에 표, 오른쪽에 리스트를 배치
-    out_col1, out_col2 = st.columns([7, 3])
+    # [핵심 로직] 엑셀 디자인을 웹에 100% 이식하는 HTML/CSS 커스텀 생성기
+    html_str = """
+    <style>
+    .report-table {
+        border-collapse: collapse;
+        text-align: center;
+        font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+        font-size: 13.5px;
+        color: #000;
+        margin-top: 5px;
+    }
+    .report-table th {
+        background-color: #dce6f2; /* 파스텔 블루 */
+        border: 1px solid #000;
+        padding: 6px 15px;
+        font-weight: normal;
+        white-space: nowrap; /* 글씨 줄바꿈 방지 */
+    }
+    .report-table td {
+        border-top: 1px dotted #000;
+        border-bottom: 1px dotted #000;
+        border-left: 1px dotted #000;
+        border-right: 1px dotted #000;
+        padding: 6px 15px;
+        white-space: nowrap;
+    }
+    /* 블록 외곽선은 굵은 실선으로 처리 */
+    .report-table th:first-child, .report-table td:first-child {
+        border-left: 1px solid #000;
+    }
+    .report-table tr:last-child td {
+        border-bottom: 1px solid #000;
+    }
+    /* '26년 누적'과 '25년 실적' 사이의 여백 기둥 */
+    .spacer {
+        border: none !important;
+        background-color: #fff !important;
+        width: 15px !important;
+        padding: 0 !important;
+    }
+    /* 25년 실적 박스 외곽선 */
+    .right-box th, .right-box td {
+        border-left: 1px solid #000 !important;
+        border-right: 1px solid #000 !important;
+    }
+    /* 누적 데이터 우측 마감선 */
+    .left-box-end {
+        border-right: 1px solid #000 !important;
+    }
+    </style>
+    <table class="report-table">
+    <thead><tr>
+    """
+    
+    cols = list(table_data.keys())
+    target_col = '25년 실적\n(12/31 기준)'
+    
+    for c in cols:
+        if c == target_col:
+            html_str += f"<th class='spacer'></th><th class='right-box'>{c.replace(chr(10), '<br>')}</th>"
+        else:
+            cls = "left-box-end" if c == cols[cols.index(target_col)-1] else ""
+            html_str += f"<th class='{cls}'>{c}</th>"
+    html_str += "</tr></thead><tbody>"
+    
+    for i in range(len(table_data['채널'])):
+        html_str += "<tr>"
+        for c in cols:
+            val = table_data[c][i]
+            if c == target_col:
+                html_str += f"<td class='spacer'></td><td class='right-box'>{val}</td>"
+            else:
+                cls = "left-box-end" if c == cols[cols.index(target_col)-1] else ""
+                html_str += f"<td class='{cls}'>{val}</td>"
+        html_str += "</tr>"
+        
+    html_str += "</tbody></table>"
+    
+    # 여백 최적화를 위해 컬럼 비율 조정
+    out_col1, out_col2 = st.columns([6.7, 3.3]) 
+    
     with out_col1:
-        # 인덱스를 '채널'로 세팅하여 깔끔한 표 렌더링
-        final_df = pd.DataFrame(table_data).set_index('채널')
-        st.table(final_df)
+        st.markdown(html_str, unsafe_allow_html=True)
         
     with out_col2:
-        st.markdown("**[근접 순위 채널 (26년 누적)]**")
-        # 근접 순위는 오직 26년 누적 데이터에서만 추출
         if not df_acc.empty:
             range_df = df_acc[(df_acc['순위'] >= 12) & (df_acc['순위'] <= 18)]
             if not range_df.empty:
-                range_lines = []
+                # 우측 텍스트도 표와 폰트 크기가 일치하도록 HTML로 커스텀
+                right_html = f"""
+                <div style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 10px;">
+                    <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
+                """
                 for _, row in range_df.iterrows():
-                    range_lines.append(f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})")
-                st.markdown("  \n".join(range_lines))
+                    right_html += f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})<br>"
+                right_html += "</div>"
+                st.markdown(right_html, unsafe_allow_html=True)
             else:
                 st.write("해당 순위 데이터가 없습니다.")
         else:
