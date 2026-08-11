@@ -9,13 +9,14 @@ st.title("📊 통합 데이터 자동 분석기")
 # ==========================================
 # [공통 기능] 데이터 파서 및 입력칸 초기화 로직
 # ==========================================
-def clear_text(key):
-    # [수정] 텍스트 입력칸과 파일 업로드 칸을 각각 안전하게 비워주는 로직
-    if key in st.session_state:
-        if "paste" in key:
-            st.session_state[key] = ""
-        else:
-            del st.session_state[key] # 파일 업로더는 완전히 삭제하여 초기화
+def clear_texts(keys):
+    # [업그레이드] 여러 개의 입력칸을 한 번에 모두 안전하게 비워주는 로직
+    for key in keys:
+        if key in st.session_state:
+            if "upload" in key:
+                del st.session_state[key]
+            else:
+                st.session_state[key] = ""
 
 def parse_pasted_data(pasted_text):
     lines = pasted_text.strip().split('\n')
@@ -33,47 +34,97 @@ def parse_pasted_data(pasted_text):
     return pd.DataFrame(data_list)
 
 # ==========================================
-# 1️⃣ [첫 번째 기능] 시청률 분석
+# 1️⃣ [첫 번째 기능] 시청률 분석 (보고서 표 생성)
 # ==========================================
-st.header("1️⃣ 시청률 분석")
-st.write("엑셀 데이터를 드래그하여 복사(Ctrl+C)한 뒤, 아래에 붙여넣기(Ctrl+V) 해주세요.")
+st.header("1️⃣ 채널 순위 및 시청률")
+st.write("각 일자별 데이터와 누적 데이터를 넣으면 통합 표를 생성합니다. (날짜를 입력하지 않은 칸은 표에서 제외됩니다.)")
 
-pasted_data_1 = st.text_area("시청률 분석용 데이터 붙여넣기", height=150, key="paste1")
-
-col1, col2, col3 = st.columns([2, 2, 6])
+# [수정] 4개의 입력칸을 보기 좋게 배치
+col1, col2, col3 = st.columns(3)
 with col1:
-    run1 = st.button("시청률 분석 실행", key="btn1", use_container_width=True)
+    date_1 = st.text_input("일자 1 (예: 8/7 (금))", key="date1")
+    paste_1 = st.text_area("일자 1 데이터 붙여넣기", height=120, key="paste_day1")
 with col2:
-    st.button("데이터 지우기 🗑️", key="clear1", on_click=clear_text, args=("paste1",), use_container_width=True)
+    date_2 = st.text_input("일자 2 (예: 8/8 (토))", key="date2")
+    paste_2 = st.text_area("일자 2 데이터 붙여넣기", height=120, key="paste_day2")
+with col3:
+    date_3 = st.text_input("일자 3 (예: 8/9 (일))", key="date3")
+    paste_3 = st.text_area("일자 3 데이터 붙여넣기", height=120, key="paste_day3")
+
+paste_acc = st.text_area("26년 누적 데이터 붙여넣기", height=120, key="paste_acc")
+
+btn_col1, btn_col2, _ = st.columns([2, 2, 6])
+with btn_col1:
+    run1 = st.button("시청률 표 생성", key="btn1", use_container_width=True)
+with btn_col2:
+    # 7개의 칸(날짜 3개 + 데이터 4개)을 한 번에 지웁니다.
+    keys_to_clear = ["date1", "paste_day1", "date2", "paste_day2", "date3", "paste_day3", "paste_acc"]
+    st.button("데이터 지우기 🗑️", key="clear1", on_click=clear_texts, args=(keys_to_clear,), use_container_width=True)
 
 if run1:
-    if pasted_data_1.strip() != "":
-        df1 = parse_pasted_data(pasted_data_1)
+    targets = ['SBS Biz', 'YTN', '연합뉴스TV', '한국경제TV']
+    table_data = {'채널': targets}
+    
+    # 엑셀과 동일한 '00위 (0.000)' 형식으로 포맷팅하는 함수
+    def get_channel_stat(df, ch):
+        res = df[df['채널명'] == ch]
+        if not res.empty:
+            return f"{res.iloc[0]['순위']}위 ({res.iloc[0]['시청률']:.3f})"
+        return "-"
         
-        if not df1.empty:
-            st.subheader("🎯 주요 채널 시청률")
-            targets = ['SBS Biz', 'YTN', '연합뉴스TV', '한국경제TV']
+    dfs = {}
+    if date_1.strip() and paste_1.strip():
+        df_tmp = parse_pasted_data(paste_1)
+        if not df_tmp.empty: dfs[date_1.strip()] = df_tmp
+        
+    if date_2.strip() and paste_2.strip():
+        df_tmp = parse_pasted_data(paste_2)
+        if not df_tmp.empty: dfs[date_2.strip()] = df_tmp
+        
+    if date_3.strip() and paste_3.strip():
+        df_tmp = parse_pasted_data(paste_3)
+        if not df_tmp.empty: dfs[date_3.strip()] = df_tmp
+        
+    for date_label, df_tmp in dfs.items():
+        table_data[date_label] = [get_channel_stat(df_tmp, ch) for ch in targets]
+        
+    df_acc = pd.DataFrame()
+    if paste_acc.strip():
+        df_acc = parse_pasted_data(paste_acc)
+        if not df_acc.empty:
+            table_data['26년 누적'] = [get_channel_stat(df_acc, ch) for ch in targets]
             
-            for ch in targets:
-                res = df1[df1['채널명'] == ch]
-                if not res.empty:
-                    rank = res.iloc[0]['순위']
-                    rating = res.iloc[0]['시청률']
-                    st.write(f"**{ch}**: {rank}위 ({rating})")
-                else:
-                    st.write(f"**{ch}**: 순위권 밖 (데이터 없음)")
-
-            st.subheader("📊 12위 ~ 18위 채널 순위")
-            range_df = df1[(df1['순위'] >= 12) & (df1['순위'] <= 18)]
-            
-            range_lines = []
-            for _, row in range_df.iterrows():
-                range_lines.append(f"{row['순위']}위 {row['채널명']} ({row['시청률']})")
-            st.markdown("  \n".join(range_lines))
+    # [요청 반영] 25년 실적 항목은 이미지와 동일한 수치로 고정 출력
+    table_data['25년 실적\n(12/31 기준)'] = [
+        "23위 (0.122)", # SBS Biz
+        "2위 (0.795)",  # YTN
+        "4위 (0.691)",  # 연합뉴스TV
+        "50위 (0.056)"  # 한국경제TV
+    ]
+    
+    st.markdown("##### 1. 채널 순위 및 시청률 (종편 및 케이블 채널 210개)")
+    
+    # 이미지와 똑같이 왼쪽에 표, 오른쪽에 리스트를 배치
+    out_col1, out_col2 = st.columns([7, 3])
+    with out_col1:
+        # 인덱스를 '채널'로 세팅하여 깔끔한 표 렌더링
+        final_df = pd.DataFrame(table_data).set_index('채널')
+        st.table(final_df)
+        
+    with out_col2:
+        st.markdown("**[근접 순위 채널 (26년 누적)]**")
+        # 근접 순위는 오직 26년 누적 데이터에서만 추출
+        if not df_acc.empty:
+            range_df = df_acc[(df_acc['순위'] >= 12) & (df_acc['순위'] <= 18)]
+            if not range_df.empty:
+                range_lines = []
+                for _, row in range_df.iterrows():
+                    range_lines.append(f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})")
+                st.markdown("  \n".join(range_lines))
+            else:
+                st.write("해당 순위 데이터가 없습니다.")
         else:
-            st.warning("유효한 숫자를 찾지 못했습니다. 데이터를 다시 복사해 주세요.")
-    else:
-        st.warning("데이터를 먼저 붙여넣어 주세요.")
+            st.write("⚠️ 26년 누적 데이터를 입력해 주세요.")
 
 st.divider()
 
@@ -89,7 +140,7 @@ col1, col2, col3 = st.columns([2, 2, 6])
 with col1:
     run2 = st.button("전략 시간대 분석 실행", key="btn2", use_container_width=True)
 with col2:
-    st.button("데이터 지우기 🗑️", key="clear2", on_click=clear_text, args=("paste2",), use_container_width=True)
+    st.button("데이터 지우기 🗑️", key="clear2", on_click=clear_texts, args=(["paste2"],), use_container_width=True)
 
 if run2:
     if pasted_data_2.strip() != "":
@@ -145,38 +196,32 @@ st.divider()
 st.header("3️⃣ 시청률 추이 그래프")
 st.write("시청률 엑셀 파일을 업로드해 주세요. (시간대 그룹별로 그래프가 각각 생성됩니다)")
 
-# [수정] 텍스트 입력창 대신 엑셀 파일 업로더로 변경
 upload_3 = st.file_uploader("그래프 분석용 엑셀 업로드", type=["xlsx", "xls"], key="upload3")
 
 col1, col2, col3 = st.columns([2, 2, 6])
 with col1:
     run3 = st.button("그래프 그리기", key="btn3", use_container_width=True)
 with col2:
-    st.button("데이터 지우기 🗑️", key="clear3", on_click=clear_text, args=("upload3",), use_container_width=True)
+    st.button("데이터 지우기 🗑️", key="clear3", on_click=clear_texts, args=(["upload3"],), use_container_width=True)
 
 if run3:
     if upload_3 is not None:
         try:
-            # 엑셀 파일에서 4번째 줄(header=3)부터 데이터를 읽어옵니다.
             df3 = pd.read_excel(upload_3, header=3)
             df3.columns = ['시간대 그룹', '시간', '시청률']
             
-            # 빈칸으로 되어 있는 시간대 그룹(프로그램명)을 위에서부터 아래로 채워줍니다.
             df3['시간대 그룹'] = df3['시간대 그룹'].ffill()
             
-            # 시간이나 시청률 값이 없는 불필요한 줄은 제거하고, 시청률을 숫자로 확실히 변환합니다.
             df3 = df3.dropna(subset=['시간', '시청률'])
             df3['시청률'] = pd.to_numeric(df3['시청률'], errors='coerce')
             df3 = df3.dropna(subset=['시청률'])
             
             if not df3.empty:
-                # 프로그램명(시간대 그룹)을 추출하여 각각의 그래프를 반복해서 그립니다.
                 groups = df3['시간대 그룹'].unique()
                 
                 for grp in groups:
                     st.subheader(f"📈 {grp} 시청률 추이")
                     
-                    # [핵심 로직] 각 그룹별 데이터만 뽑아낸 뒤 인덱스를 0부터 초기화하여 좌표 버그 차단
                     df_grp = df3[df3['시간대 그룹'] == grp].copy().reset_index(drop=True)
                     
                     fig, ax = plt.subplots(figsize=(10, 4))
