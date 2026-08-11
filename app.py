@@ -33,7 +33,7 @@ def parse_pasted_data(pasted_text):
     return pd.DataFrame(data_list)
 
 # ==========================================
-# 1️⃣ [첫 번째 기능] 시청률 분석 (엑셀 양식 완벽 재현)
+# 1️⃣ [첫 번째 기능] 시청률 분석 (보고서 표 생성)
 # ==========================================
 st.header("1️⃣ 채널 순위 및 시청률")
 st.write("각 일자별 데이터와 누적 데이터를 넣으면 통합 표를 생성합니다. (날짜를 입력하지 않은 칸은 표에서 제외됩니다.)")
@@ -100,23 +100,30 @@ if run1:
     
     st.markdown("##### 1. 채널 순위 및 시청률 (종편 및 케이블 채널 210개)")
     
-    # [핵심 로직] 엑셀 디자인을 웹에 100% 이식하는 HTML/CSS 커스텀 생성기
+    # [핵심 수정] 표와 우측 리스트를 하나의 유연한 컨테이너로 감싸 겹침 현상을 원천 방지
     html_str = """
     <style>
+    .report-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 30px;
+        margin-top: 5px;
+        overflow-x: auto;
+    }
     .report-table {
         border-collapse: collapse;
         text-align: center;
         font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
         font-size: 13.5px;
         color: #000;
-        margin-top: 5px;
     }
     .report-table th {
         background-color: #dce6f2; /* 파스텔 블루 */
         border: 1px solid #000;
         padding: 6px 15px;
         font-weight: normal;
-        white-space: nowrap; /* 글씨 줄바꿈 방지 */
+        white-space: nowrap;
     }
     .report-table td {
         border-top: 1px dotted #000;
@@ -126,30 +133,35 @@ if run1:
         padding: 6px 15px;
         white-space: nowrap;
     }
-    /* 블록 외곽선은 굵은 실선으로 처리 */
     .report-table th:first-child, .report-table td:first-child {
         border-left: 1px solid #000;
     }
     .report-table tr:last-child td {
         border-bottom: 1px solid #000;
     }
-    /* '26년 누적'과 '25년 실적' 사이의 여백 기둥 */
     .spacer {
         border: none !important;
         background-color: #fff !important;
         width: 15px !important;
         padding: 0 !important;
     }
-    /* 25년 실적 박스 외곽선 */
     .right-box th, .right-box td {
         border-left: 1px solid #000 !important;
         border-right: 1px solid #000 !important;
     }
-    /* 누적 데이터 우측 마감선 */
     .left-box-end {
         border-right: 1px solid #000 !important;
     }
+    .right-list {
+        font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+        font-size: 13.5px;
+        color: #000;
+        line-height: 1.5;
+        white-space: nowrap;
+    }
     </style>
+    <div class="report-container">
+    <div>
     <table class="report-table">
     <thead><tr>
     """
@@ -176,31 +188,25 @@ if run1:
                 html_str += f"<td class='{cls}'>{val}</td>"
         html_str += "</tr>"
         
-    html_str += "</tbody></table>"
+    html_str += "</tbody></table></div>"
     
-    # 여백 최적화를 위해 컬럼 비율 조정
-    out_col1, out_col2 = st.columns([6.7, 3.3]) 
+    # 우측 근접 순위 텍스트 영역 추가
+    html_str += "<div class='right-list'>"
+    html_str += "<span style='font-weight: bold;'>[근접 순위 채널 (26년 누적)]</span><br><br>"
     
-    with out_col1:
-        st.markdown(html_str, unsafe_allow_html=True)
-        
-    with out_col2:
-        if not df_acc.empty:
-            range_df = df_acc[(df_acc['순위'] >= 12) & (df_acc['순위'] <= 18)]
-            if not range_df.empty:
-                # 우측 텍스트도 표와 폰트 크기가 일치하도록 HTML로 커스텀
-                right_html = f"""
-                <div style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 10px;">
-                    <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
-                """
-                for _, row in range_df.iterrows():
-                    right_html += f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})<br>"
-                right_html += "</div>"
-                st.markdown(right_html, unsafe_allow_html=True)
-            else:
-                st.write("해당 순위 데이터가 없습니다.")
+    if not df_acc.empty:
+        range_df = df_acc[(df_acc['순위'] >= 12) & (df_acc['순위'] <= 18)]
+        if not range_df.empty:
+            for _, row in range_df.iterrows():
+                html_str += f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})<br>"
         else:
-            st.write("⚠️ 26년 누적 데이터를 입력해 주세요.")
+            html_str += "해당 순위 데이터가 없습니다."
+    else:
+        html_str += "<span style='color: #888;'>⚠️ 26년 누적 데이터를 입력해 주세요.</span>"
+        
+    html_str += "</div></div>"
+    
+    st.markdown(html_str, unsafe_allow_html=True)
 
 st.divider()
 
