@@ -33,7 +33,7 @@ def parse_pasted_data(pasted_text):
     return pd.DataFrame(data_list)
 
 # ==========================================
-# 1️⃣ [첫 번째 기능] 시청률 분석 (보고서 표 생성)
+# 1️⃣ [첫 번째 기능] 시청률 분석 (엑셀 양식 완벽 재현 및 겹침 방지)
 # ==========================================
 st.header("1️⃣ 채널 순위 및 시청률")
 st.write("각 일자별 데이터와 누적 데이터를 넣으면 통합 표를 생성합니다. (날짜를 입력하지 않은 칸은 표에서 제외됩니다.)")
@@ -90,7 +90,6 @@ if run1:
         if not df_acc.empty:
             table_data['26년 누적'] = [get_channel_stat(df_acc, ch) for ch in targets]
             
-    # 25년 실적 데이터 고정
     table_data['25년 실적\n(12/31 기준)'] = [
         "23위 (0.122)", 
         "2위 (0.795)",  
@@ -100,30 +99,22 @@ if run1:
     
     st.markdown("##### 1. 채널 순위 및 시청률 (종편 및 케이블 채널 210개)")
     
-    # [핵심 수정] 표와 우측 리스트를 하나의 유연한 컨테이너로 감싸 겹침 현상을 원천 방지
     html_str = """
     <style>
-    .report-container {
-        display: flex;
-        flex-direction: row;
-        align-items: flex-start;
-        gap: 30px;
-        margin-top: 5px;
-        overflow-x: auto;
-    }
     .report-table {
         border-collapse: collapse;
         text-align: center;
         font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
         font-size: 13.5px;
         color: #000;
+        margin-top: 5px;
     }
     .report-table th {
-        background-color: #dce6f2; /* 파스텔 블루 */
+        background-color: #dce6f2; 
         border: 1px solid #000;
         padding: 6px 15px;
         font-weight: normal;
-        white-space: nowrap;
+        white-space: nowrap; 
     }
     .report-table td {
         border-top: 1px dotted #000;
@@ -152,16 +143,7 @@ if run1:
     .left-box-end {
         border-right: 1px solid #000 !important;
     }
-    .right-list {
-        font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-        font-size: 13.5px;
-        color: #000;
-        line-height: 1.5;
-        white-space: nowrap;
-    }
     </style>
-    <div class="report-container">
-    <div>
     <table class="report-table">
     <thead><tr>
     """
@@ -188,25 +170,45 @@ if run1:
                 html_str += f"<td class='{cls}'>{val}</td>"
         html_str += "</tr>"
         
-    html_str += "</tbody></table></div>"
+    html_str += "</tbody></table>"
     
-    # 우측 근접 순위 텍스트 영역 추가
-    html_str += "<div class='right-list'>"
-    html_str += "<span style='font-weight: bold;'>[근접 순위 채널 (26년 누적)]</span><br><br>"
-    
+    right_html = ""
     if not df_acc.empty:
         range_df = df_acc[(df_acc['순위'] >= 12) & (df_acc['순위'] <= 18)]
         if not range_df.empty:
+            right_html += f"""
+            <div style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px;">
+                <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
+            """
             for _, row in range_df.iterrows():
-                html_str += f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})<br>"
+                right_html += f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})<br>"
+            right_html += "</div>"
         else:
-            html_str += "해당 순위 데이터가 없습니다."
+            right_html = f"""
+            <div style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px;">
+                <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
+                해당 순위 데이터가 없습니다.
+            </div>
+            """
     else:
-        html_str += "<span style='color: #888;'>⚠️ 26년 누적 데이터를 입력해 주세요.</span>"
-        
-    html_str += "</div></div>"
-    
-    st.markdown(html_str, unsafe_allow_html=True)
+        right_html = f"""
+        <div style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px;">
+            <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
+            ⚠️ 26년 누적 데이터를 입력해 주세요.
+        </div>
+        """
+
+    final_layout = f"""
+    <div style="display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start;">
+        <div style="overflow-x: auto; max-width: 100%;">
+            {html_str}
+        </div>
+        <div style="min-width: 220px; white-space: nowrap;">
+            {right_html}
+        </div>
+    </div>
+    """
+    st.markdown(final_layout, unsafe_allow_html=True)
 
 st.divider()
 
@@ -306,7 +308,8 @@ if run3:
                     
                     df_grp = df3[df3['시간대 그룹'] == grp].copy().reset_index(drop=True)
                     
-                    fig, ax = plt.subplots(figsize=(10, 4))
+                    # [핵심 수정] 요청하신 너비 800px, 높이 315px 크기에 맞게 figsize=(8, 3.15)로 수정했습니다.
+                    fig, ax = plt.subplots(figsize=(8, 3.15))
                     
                     ax.plot(df_grp['시간'], df_grp['시청률'], color='#5B9BD5', linewidth=2.5)
                     
