@@ -101,17 +101,110 @@ if run1:
     st.markdown("##### 1. 채널 순위 및 시청률 (종편 및 케이블 채널 210개)")
     st.info("💡 **팁:** 표 전체를 마우스로 드래그하여 복사(Ctrl+C)한 뒤, 엑셀이나 메일에 붙여넣기(Ctrl+V) 하시면 테두리와 색상 양식이 그대로 복사됩니다!")
 
-    # [수정 1] 빈 공간을 엑셀처럼 완벽히 투명하게 뚫어주는 특수 CSS 설정
+    # 1. 수정된 완벽한 CSS 반영
     raw_css = """
     <style>
-    .report-table { border-collapse: collapse; text-align: center; font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; margin-top: 5px; background-color: #fff; }
-    .report-table th { background-color: #dce6f2; border: 1px solid #000; padding: 6px 15px; font-weight: normal; white-space: nowrap; }
-    .report-table td { border: 1px dotted #000; padding: 6px 15px; white-space: nowrap; }
-    .report-table th:first-child, .report-table td:first-child { border-left: 1px solid #000; }
-    .report-table tr:last-child td { border-bottom: 1px solid #000; }
-    .empty-goal { border: none !important; background-color: transparent !important; }
-    .spacer { border: none !important; background-color: transparent !important; width: 10px !important; min-width: 10px !important; padding: 0 !important; }
-    .right-box { border-left: 1px solid #000 !important; border-right: 1px solid #000 !important; }
+    .report-table {
+        border-collapse: collapse;
+        text-align: center;
+        font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+        font-size: 13.5px;
+        color: #000;
+        margin-top: 5px;
+        background-color: #fff;
+        flex-shrink: 0;
+    }
+    .report-table th {
+        background-color: #dce6f2;
+        border: 1px solid #000;
+        padding: 6px 15px;
+        font-weight: normal;
+        white-space: nowrap;
+    }
+    .report-table td {
+        border: 1px dotted #000;
+        padding: 6px 15px;
+        white-space: nowrap;
+    }
+    /* 첫 번째 열 왼쪽 외곽선 */
+    .report-table th:first-child,
+    .report-table td:first-child {
+        border-left: 1px solid #000;
+    }
+    /* 마지막 행 아래쪽 외곽선 */
+    .report-table tr:last-child td {
+        border-bottom: 1px solid #000;
+    }
+
+    /* ------------------------------------------
+       26년 목표 열
+       ------------------------------------------ */
+    /* 목표 열의 빈 셀 */
+    .empty-goal {
+        background-color: #d9d9d9 !important;
+        border-left: 1px solid #000 !important;
+        border-right: 1px solid #000 !important;
+        border-top: 1px dotted #000 !important;
+        border-bottom: 1px dotted #000 !important;
+    }
+    /* 목표 열 마지막 빈칸 아래쪽 */
+    .goal-bottom {
+        background-color: #d9d9d9 !important;
+        border-left: 1px solid #000 !important;
+        border-right: 1px solid #000 !important;
+        border-bottom: 1px solid #000 !important;
+    }
+    /* 26년 목표 제목 */
+    .goal-header {
+        border: 1px solid red !important;
+        background-color: #dce6f2 !important;
+        font-weight: bold !important;
+    }
+    /* 26년 목표 실제 값 */
+    .goal-value {
+        border: 1px solid red !important;
+        background-color: #fff !important;
+        font-weight: bold !important;
+        color: #000 !important;
+    }
+
+    /* ------------------------------------------
+       25년 실적 앞쪽 빈 공간
+       ------------------------------------------ */
+    .spacer {
+        border: none !important;
+        background-color: transparent !important;
+        width: 10px !important;
+        min-width: 10px !important;
+        padding: 0 !important;
+    }
+    /* 25년 실적 박스 */
+    .right-box {
+        border-left: 1px solid #000 !important;
+        border-right: 1px solid #000 !important;
+    }
+
+    /* ------------------------------------------
+       표 + 우측 근접순위 영역
+       ------------------------------------------ */
+    .report-layout {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 20px;
+        width: max-content;
+        min-width: 100%;
+    }
+    .report-table-wrap {
+        flex: 0 0 auto;
+    }
+    .right-ranking {
+        flex: 0 0 auto;
+        min-width: 250px;
+        width: 250px;
+        overflow: visible;
+        white-space: nowrap;
+    }
     </style>
     """
     html_str = "\n".join(line.strip() for line in raw_css.split("\n"))
@@ -121,24 +214,29 @@ if run1:
     target_col = '25년 실적\n(12/31 기준)'
     goal_col = '26년 목표'
     
+    # 2. 헤더 생성 로직 교체
     for c in cols:
         if c == target_col:
             html_str += f"<th class='spacer'></th><th class='right-box'>{c.replace(chr(10), '<br>')}</th>"
         elif c == goal_col:
-            html_str += f"<th style='border: 1px solid red !important; background-color: #dce6f2; font-weight: bold;'>{c}</th>"
+            html_str += f"<th class='goal-header'>{c}</th>"
         else:
             html_str += f"<th>{c}</th>"
     html_str += "</tr></thead><tbody>"
     
+    # 3. 데이터 셀 생성 로직 교체
     for i, target_ch in enumerate(targets):
         html_str += "<tr>"
         for c in cols:
             val = table_data[c][i]
+            
             if c == goal_col:
                 if target_ch == 'SBS Biz':
-                    html_str += f"<td style='border: 1px solid red !important; font-weight: bold; color: #000;'>{val}</td>"
+                    html_str += f"<td class='goal-value'>{val}</td>"
+                elif i == len(targets) - 1:
+                    html_str += "<td class='goal-bottom'></td>"
                 else:
-                    html_str += f"<td class='empty-goal'></td>"
+                    html_str += "<td class='empty-goal'></td>"
             elif c == target_col:
                 html_str += f"<td class='spacer'></td><td class='right-box'>{val}</td>"
             else:
@@ -147,26 +245,63 @@ if run1:
         
     html_str += "</tbody></table>"
     
-    # [수정 2] 우측 텍스트 로직 (마크다운 충돌 방지)
+    # 4. 우측 근접 순위 영역 로직 교체
     right_raw = ""
     if not df_acc.empty:
         range_df = df_acc[(df_acc['순위'] >= 12) & (df_acc['순위'] <= 18)]
         if not range_df.empty:
-            right_raw += f"<div style=\"font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px; white-space: nowrap;\">"
+            right_raw += """
+            <div class="right-ranking"
+                 style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+                        font-size: 13.5px;
+                        color: #000;
+                        padding-top: 5px;
+                        white-space: nowrap;">
+            """
             right_raw += "<span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>"
             for _, row in range_df.iterrows():
                 right_raw += f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})<br>"
             right_raw += "</div>"
         else:
-            right_raw = "<div style=\"font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px; white-space: nowrap;\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>해당 순위 데이터가 없습니다.</div>"
+            right_raw = """
+            <div class="right-ranking"
+                 style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+                        font-size: 13.5px;
+                        color: #000;
+                        padding-top: 5px;
+                        white-space: nowrap;">
+                <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
+                해당 순위 데이터가 없습니다.
+            </div>
+            """
     else:
-        right_raw = "<div style=\"font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px; white-space: nowrap;\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>⚠️ 26년 누적 데이터를 입력해 주세요.</div>"
+        right_raw = """
+        <div class="right-ranking"
+             style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+                    font-size: 13.5px;
+                    color: #000;
+                    padding-top: 5px;
+                    white-space: nowrap;">
+            <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
+            ⚠️ 26년 누적 데이터를 입력해 주세요.
+        </div>
+        """
 
-    # [수정 3] 표와 우측 텍스트가 절대 떨어지지 않고 나란히 고정되도록 강제 배열(flex-direction: row)
+    # 5. 표와 근접 순위 영역의 최종 배치 교체
     layout_raw = f"""
-    <div style="display: flex; flex-direction: row; align-items: flex-start; overflow-x: auto; padding: 10px 0px; background-color: #fff; gap: 20px;">
-        <div>{html_str}</div>
-        <div>{right_raw}</div>
+    <div style="
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 10px 0px;
+        background-color: #fff;
+    ">
+        <div class="report-layout">
+            <div class="report-table-wrap">
+                {html_str}
+            </div>
+            {right_raw}
+        </div>
     </div>
     """
     final_layout = "\n".join(line.strip() for line in layout_raw.split("\n"))
