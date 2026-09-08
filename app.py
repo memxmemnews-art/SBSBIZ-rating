@@ -33,7 +33,7 @@ def parse_pasted_data(pasted_text):
     return pd.DataFrame(data_list)
 
 # ==========================================
-# 1️⃣ [첫 번째 기능] 시청률 분석 (엑셀 양식 완벽 재현)
+# 1️⃣ [첫 번째 기능] 시청률 분석 (엑셀 양식 완벽 재현 및 복사 최적화)
 # ==========================================
 st.header("1️⃣ 채널 순위 및 시청률")
 st.write("각 일자별 데이터와 누적 데이터를 넣으면 통합 표를 생성합니다. (날짜를 입력하지 않은 칸은 표에서 제외됩니다.)")
@@ -101,7 +101,7 @@ if run1:
     st.markdown("##### 1. 채널 순위 및 시청률 (종편 및 케이블 채널 210개)")
     st.info("💡 **팁:** 표 전체를 마우스로 드래그하여 복사(Ctrl+C)한 뒤, 엑셀이나 메일에 붙여넣기(Ctrl+V) 하시면 테두리와 색상 양식이 그대로 복사됩니다!")
 
-    # 1. 수정된 완벽한 CSS 반영
+    # 1. CSS 정리 (레이아웃 관련 불필요한 속성 제거)
     raw_css = """
     <style>
     .report-table {
@@ -112,7 +112,6 @@ if run1:
         color: #000;
         margin-top: 5px;
         background-color: #fff;
-        flex-shrink: 0;
     }
     .report-table th {
         background-color: #dce6f2;
@@ -126,20 +125,13 @@ if run1:
         padding: 6px 15px;
         white-space: nowrap;
     }
-    /* 첫 번째 열 왼쪽 외곽선 */
     .report-table th:first-child,
     .report-table td:first-child {
         border-left: 1px solid #000;
     }
-    /* 마지막 행 아래쪽 외곽선 */
     .report-table tr:last-child td {
         border-bottom: 1px solid #000;
     }
-
-    /* ------------------------------------------
-       26년 목표 열
-       ------------------------------------------ */
-    /* 목표 열의 빈 셀 */
     .empty-goal {
         background-color: #d9d9d9 !important;
         border-left: 1px solid #000 !important;
@@ -147,30 +139,23 @@ if run1:
         border-top: 1px dotted #000 !important;
         border-bottom: 1px dotted #000 !important;
     }
-    /* 목표 열 마지막 빈칸 아래쪽 */
     .goal-bottom {
         background-color: #d9d9d9 !important;
         border-left: 1px solid #000 !important;
         border-right: 1px solid #000 !important;
         border-bottom: 1px solid #000 !important;
     }
-    /* 26년 목표 제목 */
     .goal-header {
         border: 1px solid red !important;
         background-color: #dce6f2 !important;
         font-weight: bold !important;
     }
-    /* 26년 목표 실제 값 */
     .goal-value {
         border: 1px solid red !important;
         background-color: #fff !important;
         font-weight: bold !important;
         color: #000 !important;
     }
-
-    /* ------------------------------------------
-       25년 실적 앞쪽 빈 공간
-       ------------------------------------------ */
     .spacer {
         border: none !important;
         background-color: transparent !important;
@@ -178,32 +163,9 @@ if run1:
         min-width: 10px !important;
         padding: 0 !important;
     }
-    /* 25년 실적 박스 */
     .right-box {
         border-left: 1px solid #000 !important;
         border-right: 1px solid #000 !important;
-    }
-
-    /* ------------------------------------------
-       표 + 우측 근접순위 영역
-       ------------------------------------------ */
-    .report-layout {
-        display: inline-flex;
-        flex-direction: row;
-        align-items: flex-start;
-        gap: 20px;
-        width: max-content;
-        min-width: 100%;
-    }
-    .report-table-wrap {
-        flex: 0 0 auto;
-    }
-    .right-ranking {
-        flex: 0 0 auto;
-        min-width: 250px;
-        width: 250px;
-        overflow: visible;
-        white-space: nowrap;
     }
     </style>
     """
@@ -214,7 +176,6 @@ if run1:
     target_col = '25년 실적\n(12/31 기준)'
     goal_col = '26년 목표'
     
-    # 2. 헤더 생성 로직 교체
     for c in cols:
         if c == target_col:
             html_str += f"<th class='spacer'></th><th class='right-box'>{c.replace(chr(10), '<br>')}</th>"
@@ -224,7 +185,6 @@ if run1:
             html_str += f"<th>{c}</th>"
     html_str += "</tr></thead><tbody>"
     
-    # 3. 데이터 셀 생성 로직 교체
     for i, target_ch in enumerate(targets):
         html_str += "<tr>"
         for c in cols:
@@ -245,63 +205,38 @@ if run1:
         
     html_str += "</tbody></table>"
     
-    # 4. 우측 근접 순위 영역 로직 교체
+    # 2. 우측 텍스트 인라인 스타일 지정 (복사 붙여넣기 호환성 강화)
+    right_style = "font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px; white-space: nowrap; line-height: 1.5;"
     right_raw = ""
+    
     if not df_acc.empty:
         range_df = df_acc[(df_acc['순위'] >= 12) & (df_acc['순위'] <= 18)]
         if not range_df.empty:
-            right_raw += """
-            <div class="right-ranking"
-                 style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-                        font-size: 13.5px;
-                        color: #000;
-                        padding-top: 5px;
-                        white-space: nowrap;">
-            """
+            right_raw += f"<div style=\"{right_style}\">"
             right_raw += "<span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>"
             for _, row in range_df.iterrows():
                 right_raw += f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})<br>"
             right_raw += "</div>"
         else:
-            right_raw = """
-            <div class="right-ranking"
-                 style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-                        font-size: 13.5px;
-                        color: #000;
-                        padding-top: 5px;
-                        white-space: nowrap;">
-                <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
-                해당 순위 데이터가 없습니다.
-            </div>
-            """
+            right_raw = f"<div style=\"{right_style}\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>해당 순위 데이터가 없습니다.</div>"
     else:
-        right_raw = """
-        <div class="right-ranking"
-             style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-                    font-size: 13.5px;
-                    color: #000;
-                    padding-top: 5px;
-                    white-space: nowrap;">
-            <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
-            ⚠️ 26년 누적 데이터를 입력해 주세요.
-        </div>
-        """
+        right_raw = f"<div style=\"{right_style}\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>⚠️ 26년 누적 데이터를 입력해 주세요.</div>"
 
-    # 5. 표와 근접 순위 영역의 최종 배치 교체
+    # [핵심 로직] 엑셀 복사/붙여넣기를 완벽하게 지원하는 '투명한 바깥쪽 뼈대 표(Master Table)' 적용
     layout_raw = f"""
-    <div style="
-        width: 100%;
-        overflow-x: auto;
-        overflow-y: hidden;
-        padding: 10px 0px;
-        background-color: #fff;
-    ">
-        <div class="report-layout">
-            <div class="report-table-wrap">
-                {html_str}
-            </div>
-            {right_raw}
-        </div>
+    <div style="width: 100%; overflow-x: auto; padding: 10px 0px; background-color: #fff;">
+        <table style="border-collapse: collapse; border: none; background-color: #fff; margin: 0; padding: 0;">
+            <tbody>
+                <tr>
+                    <td style="border: none !important; padding: 0; vertical-align: top; background-color: #fff;">
+                        {html_str}
+                    </td>
+                    <td style="border: none !important; padding: 0 0 0 25px; vertical-align: top; background-color: #fff;">
+                        {right_raw}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
     """
     final_layout = "\n".join(line.strip() for line in layout_raw.split("\n"))
