@@ -33,7 +33,7 @@ def parse_pasted_data(pasted_text):
     return pd.DataFrame(data_list)
 
 # ==========================================
-# 1️⃣ [첫 번째 기능] 시청률 분석 (엑셀 양식 완벽 재현 및 복사 최적화)
+# 1️⃣ [첫 번째 기능] 시청률 분석
 # ==========================================
 st.header("1️⃣ 채널 순위 및 시청률")
 st.write("각 일자별 데이터와 누적 데이터를 넣으면 통합 표를 생성합니다. (날짜를 입력하지 않은 칸은 표에서 제외됩니다.)")
@@ -111,6 +111,7 @@ if run1:
         color: #000;
         margin-top: 5px;
         background-color: #fff;
+        flex-shrink: 0;
     }
     .report-table th {
         background-color: #dce6f2;
@@ -166,6 +167,24 @@ if run1:
         border-left: 1px solid #000 !important;
         border-right: 1px solid #000 !important;
     }
+    .report-layout {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 20px;
+        width: max-content;
+        min-width: 100%;
+    }
+    .report-table-wrap {
+        flex: 0 0 auto;
+    }
+    .right-ranking {
+        flex: 0 0 auto;
+        min-width: 250px;
+        width: 250px;
+        overflow: visible;
+        white-space: nowrap;
+    }
     </style>
     """
     html_str = "\n".join(line.strip() for line in raw_css.split("\n"))
@@ -204,36 +223,61 @@ if run1:
         
     html_str += "</tbody></table>"
     
-    right_style = "font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px; white-space: nowrap; line-height: 1.5;"
     right_raw = ""
-    
     if not df_acc.empty:
         range_df = df_acc[(df_acc['순위'] >= 12) & (df_acc['순위'] <= 18)]
         if not range_df.empty:
-            right_raw += f"<div style=\"{right_style}\">"
+            right_raw += """
+            <div class="right-ranking"
+                 style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+                        font-size: 13.5px;
+                        color: #000;
+                        padding-top: 5px;
+                        white-space: nowrap;">
+            """
             right_raw += "<span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>"
             for _, row in range_df.iterrows():
                 right_raw += f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})<br>"
             right_raw += "</div>"
         else:
-            right_raw = f"<div style=\"{right_style}\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>해당 순위 데이터가 없습니다.</div>"
+            right_raw = """
+            <div class="right-ranking"
+                 style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+                        font-size: 13.5px;
+                        color: #000;
+                        padding-top: 5px;
+                        white-space: nowrap;">
+                <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
+                해당 순위 데이터가 없습니다.
+            </div>
+            """
     else:
-        right_raw = f"<div style=\"{right_style}\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>⚠️ 26년 누적 데이터를 입력해 주세요.</div>"
+        right_raw = """
+        <div class="right-ranking"
+             style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+                    font-size: 13.5px;
+                    color: #000;
+                    padding-top: 5px;
+                    white-space: nowrap;">
+            <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
+            ⚠️ 26년 누적 데이터를 입력해 주세요.
+        </div>
+        """
 
     layout_raw = f"""
-    <div style="width: 100%; overflow-x: auto; padding: 10px 0px; background-color: #fff;">
-        <table style="border-collapse: collapse; border: none; background-color: #fff; margin: 0; padding: 0;">
-            <tbody>
-                <tr>
-                    <td style="border: none !important; padding: 0; vertical-align: top; background-color: #fff;">
-                        {html_str}
-                    </td>
-                    <td style="border: none !important; padding: 0 0 0 25px; vertical-align: top; background-color: #fff;">
-                        {right_raw}
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+    <div style="
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 10px 0px;
+        background-color: #fff;
+    ">
+        <div class="report-layout">
+            <div class="report-table-wrap">
+                {html_str}
+            </div>
+            {right_raw}
+        </div>
     </div>
     """
     final_layout = "\n".join(line.strip() for line in layout_raw.split("\n"))
@@ -305,7 +349,7 @@ if run2:
 st.divider()
 
 # ==========================================
-# 3️⃣ [세 번째 기능] 시청률 추이 그래프 (엑셀 업로드 방식)
+# 3️⃣ [세 번째 기능] 시청률 추이 그래프
 # ==========================================
 st.header("3️⃣ 시청률 추이 그래프")
 st.write("시청률 엑셀 파일을 업로드해 주세요. (시간대 그룹별로 그래프가 각각 생성됩니다)")
@@ -480,6 +524,9 @@ if run4:
     val_prev_we = get_combined_stat(df_we, 'SBS Biz')
     val_acc_all = get_combined_stat(df_acc4, 'SBS Biz')
 
+    # HTML 렌더링 시 발생하는 마크다운 착각을 막기 위한 전체 변수 선언
+    html_4 = ""
+
     css_4 = """
     <style>
     .summary-table {
@@ -538,7 +585,7 @@ if run4:
     </style>
     """
     
-    html_4 = "\n".join(line.strip() for line in css_4.split("\n"))
+    html_4 += css_4
     
     html_4 += f"""
     <div style="width: 100%; overflow-x: auto; padding: 10px 0px; background-color: #fff;">
@@ -619,4 +666,7 @@ if run4:
         
     html_4 += "</tbody></table></div>"
     
-    st.markdown(html_4, unsafe_allow_html=True)
+    # [핵심] 코드가 깨지지 않도록 모든 줄바꿈과 띄어쓰기를 쫙 펴주는 강제 정렬
+    final_html_4 = "\n".join(line.strip() for line in html_4.split("\n"))
+    
+    st.markdown(final_html_4, unsafe_allow_html=True)
