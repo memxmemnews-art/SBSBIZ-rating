@@ -101,7 +101,6 @@ if run1:
     st.markdown("##### 1. 채널 순위 및 시청률 (종편 및 케이블 채널 210개)")
     st.info("💡 **팁:** 표 전체를 마우스로 드래그하여 복사(Ctrl+C)한 뒤, 엑셀이나 메일에 붙여넣기(Ctrl+V) 하시면 테두리와 색상 양식이 그대로 복사됩니다!")
 
-    # 1. CSS 정리 (레이아웃 관련 불필요한 속성 제거)
     raw_css = """
     <style>
     .report-table {
@@ -205,7 +204,6 @@ if run1:
         
     html_str += "</tbody></table>"
     
-    # 2. 우측 텍스트 인라인 스타일 지정 (복사 붙여넣기 호환성 강화)
     right_style = "font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px; white-space: nowrap; line-height: 1.5;"
     right_raw = ""
     
@@ -222,7 +220,6 @@ if run1:
     else:
         right_raw = f"<div style=\"{right_style}\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>⚠️ 26년 누적 데이터를 입력해 주세요.</div>"
 
-    # [핵심 로직] 엑셀 복사/붙여넣기를 완벽하게 지원하는 '투명한 바깥쪽 뼈대 표(Master Table)' 적용
     layout_raw = f"""
     <div style="width: 100%; overflow-x: auto; padding: 10px 0px; background-color: #fff;">
         <table style="border-collapse: collapse; border: none; background-color: #fff; margin: 0; padding: 0;">
@@ -389,3 +386,237 @@ if run3:
             st.error(f"파일을 분석할 수 없습니다. (상세 오류: {e})")
     else:
         st.warning("엑셀 파일을 먼저 업로드해 주세요.")
+
+st.divider()
+
+# ==========================================
+# 4️⃣ [네 번째 기능] 경제채널 경쟁사 비교 (요약표 기능 포함)
+# ==========================================
+st.header("4️⃣ 경제채널 비교")
+st.write("엑셀 데이터를 드래그하여 복사(Ctrl+C)한 뒤, 평일, 휴일, 전체, 누적 항목에 각각 붙여넣어 주세요. (파일 업로드가 아닌 텍스트 붙여넣기 방식입니다.)")
+
+col4_1, col4_2, col4_3, col4_4 = st.columns(4)
+with col4_1:
+    paste_wd = st.text_area("평일(월-금) 데이터 붙여넣기", height=120, key="paste_wd")
+with col4_2:
+    paste_we = st.text_area("휴일(토,일) 데이터 붙여넣기", height=120, key="paste_we")
+with col4_3:
+    paste_all = st.text_area("전체(월-일) 데이터 붙여넣기", height=120, key="paste_all")
+with col4_4:
+    paste_acc4 = st.text_area("26년 누적 데이터 붙여넣기", height=120, key="paste_acc4")
+
+st.markdown("##### 📝 요약 표(SBS Biz) 추가 데이터 수동 입력")
+st.write("기간 및 직접 입력해야 할 수치를 입력해 주세요.")
+
+sub1, sub2, sub3 = st.columns(3)
+with sub1:
+    st.markdown("**[전주]**")
+    date_prev = st.text_input("기간 입력", value="9/7~9/13", key="date_prev")
+    st.info("※ 순위/시청률은 위 데이터에서 자동 반영됩니다.")
+with sub2:
+    st.markdown("**[26년 누적]**")
+    date_acc = st.text_input("기간 입력 ", value="1/1~9/13", key="date_acc")
+    man_acc_wd = st.text_input("평일 (예: 15위 (0.209))", key="man_acc_wd")
+    man_acc_we = st.text_input("휴일 (예: 30위 (0.119))", key="man_acc_we")
+with sub3:
+    st.markdown("**[전년 동기 누적]**")
+    date_yoy = st.text_input("기간 입력  ", value="25/1/1~9/13", key="date_yoy")
+    man_yoy_all = st.text_input("전체 (예: 23위 (0.123))", key="man_yoy_all")
+    man_yoy_wd = st.text_input("평일 (예: 23위 (0.129))", key="man_yoy_wd")
+    man_yoy_we = st.text_input("휴일 (예: 23위 (0.110))", key="man_yoy_we")
+
+btn_col4_1, btn_col4_2, _ = st.columns([2, 2, 6])
+with btn_col4_1:
+    run4 = st.button("경쟁사 비교 표 생성", key="btn4", use_container_width=True)
+with btn_col4_2:
+    keys_to_clear4 = [
+        "paste_wd", "paste_we", "paste_all", "paste_acc4",
+        "date_prev", "date_acc", "date_yoy",
+        "man_acc_wd", "man_acc_we",
+        "man_yoy_all", "man_yoy_wd", "man_yoy_we"
+    ]
+    st.button("데이터 지우기 🗑️", key="clear4", on_click=clear_texts, args=(keys_to_clear4,), use_container_width=True)
+
+if run4:
+    target_channels_4 = [
+        'SBS Biz', '한국경제TV', 'MTN 머니투데이', '매일경제TV', 
+        '토마토TV', '서울경제TV', '연합뉴스경제TV', '이데일리TV'
+    ]
+    
+    channel_numbers = {
+        'SBS Biz': ['26, 25, 27번', '25번'],
+        '한국경제TV': ['151, 180, 162번', '151번'],
+        'MTN 머니투데이': ['152, 181, 163번', '152번'],
+        '매일경제TV': ['153, 182, 164번', '153번'],
+        '토마토TV': ['150, 185, 165번', '154번'],
+        '서울경제TV': ['156, 184, 167번', '156번'],
+        '연합뉴스경제TV': ['157, 187, 171번', '157번'],
+        '이데일리TV': ['155, 183, 166번', '155번']
+    }
+    
+    df_wd = parse_pasted_data(paste_wd) if paste_wd.strip() else pd.DataFrame()
+    df_we = parse_pasted_data(paste_we) if paste_we.strip() else pd.DataFrame()
+    df_all = parse_pasted_data(paste_all) if paste_all.strip() else pd.DataFrame()
+    df_acc4 = parse_pasted_data(paste_acc4) if paste_acc4.strip() else pd.DataFrame()
+    
+    def get_rank_rating_formatted(df, ch):
+        if not df.empty:
+            res = df[df['채널명'] == ch]
+            if not res.empty:
+                return f"{res.iloc[0]['순위']}위", f"{res.iloc[0]['시청률']:.3f}"
+        return "-", "-"
+        
+    def get_combined_stat(df, ch):
+        if not df.empty:
+            res = df[df['채널명'] == ch]
+            if not res.empty:
+                return f"{res.iloc[0]['순위']}위 ({res.iloc[0]['시청률']:.3f})"
+        return "-"
+    
+    st.info("💡 **팁:** 표 전체를 마우스로 드래그하여 복사(Ctrl+C)한 뒤, 엑셀이나 메일에 붙여넣기(Ctrl+V) 하시면 테두리와 색상 양식이 그대로 복사됩니다!")
+
+    val_prev_all = get_combined_stat(df_all, 'SBS Biz')
+    val_prev_wd = get_combined_stat(df_wd, 'SBS Biz')
+    val_prev_we = get_combined_stat(df_we, 'SBS Biz')
+    val_acc_all = get_combined_stat(df_acc4, 'SBS Biz')
+
+    css_4 = """
+    <style>
+    .summary-table {
+        border-collapse: collapse;
+        text-align: center;
+        font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+        font-size: 13.5px;
+        color: #000;
+        margin-bottom: 30px;
+        background-color: #fff;
+        border: 1.5px solid #000;
+    }
+    .summary-table th, .summary-table td {
+        border: 1px solid #000;
+        padding: 8px 25px;
+        white-space: nowrap;
+    }
+    .summary-table th {
+        background-color: #f2f2f2;
+        font-weight: normal;
+    }
+    .summary-table .col-header {
+        background-color: #f2f2f2;
+    }
+
+    .comp-table {
+        border-collapse: collapse;
+        text-align: center;
+        font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+        font-size: 13.5px;
+        color: #000;
+        background-color: #fff;
+        width: max-content;
+        border: 1px solid #000;
+    }
+    .comp-table th {
+        background-color: #dce6f2;
+        border: 1px dotted #000;
+        padding: 6px 12px;
+        font-weight: normal;
+        white-space: nowrap;
+    }
+    .comp-table td {
+        border: 1px dotted #000;
+        padding: 6px 12px;
+        white-space: nowrap;
+    }
+    .comp-table thead tr:first-child th { border-top: 1px solid #000 !important; }
+    .comp-table tbody tr:last-child td { border-bottom: 1px solid #000 !important; }
+    .comp-table th:first-child, .comp-table td:first-child { border-left: 1px solid #000 !important; }
+    .comp-table th:last-child, .comp-table td:last-child { border-right: 1px solid #000 !important; }
+    .comp-table thead tr:last-child th { border-bottom: 1px solid #000 !important; }
+    
+    .comp-table .col-group-end { border-right: 1.5px solid #000 !important; }
+    .comp-table .sbs-row td { background-color: #fff2cc !important; }
+    </style>
+    """
+    
+    html_4 = "\n".join(line.strip() for line in css_4.split("\n"))
+    
+    html_4 += f"""
+    <div style="width: 100%; overflow-x: auto; padding: 10px 0px; background-color: #fff;">
+        <table class="summary-table">
+            <thead>
+                <tr>
+                    <th>구분</th>
+                    <th>전주<br>({date_prev})</th>
+                    <th>26년 누적<br>({date_acc})</th>
+                    <th>전년 동기 누적<br>({date_yoy})</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="col-header">전체</td>
+                    <td>{val_prev_all}</td>
+                    <td>{val_acc_all}</td>
+                    <td>{man_yoy_all if man_yoy_all else '-'}</td>
+                </tr>
+                <tr>
+                    <td class="col-header">평일</td>
+                    <td>{val_prev_wd}</td>
+                    <td>{man_acc_wd if man_acc_wd else '-'}</td>
+                    <td>{man_yoy_wd if man_yoy_wd else '-'}</td>
+                </tr>
+                <tr>
+                    <td class="col-header">휴일</td>
+                    <td>{val_prev_we}</td>
+                    <td>{man_acc_we if man_acc_we else '-'}</td>
+                    <td>{man_yoy_we if man_yoy_we else '-'}</td>
+                </tr>
+            </tbody>
+        </table>
+    """
+    
+    html_4 += """
+        <table class="comp-table">
+        <thead>
+            <tr>
+                <th rowspan="2">구분</th>
+                <th colspan="2">평일 (월-금)</th>
+                <th colspan="2">휴일 (토,일)</th>
+                <th colspan="2" class="col-group-end">전체 (월-일)</th>
+                <th colspan="2" class="col-group-end">26년 누적</th>
+                <th colspan="2">채널번호</th>
+            </tr>
+            <tr>
+                <th>순위</th><th>시청률</th>
+                <th>순위</th><th>시청률</th>
+                <th>순위</th><th class="col-group-end">시청률</th>
+                <th>순위</th><th class="col-group-end">시청률</th>
+                <th>IPTV (SK, KT, LG)</th><th>스카이라이프</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    
+    for ch in target_channels_4:
+        rk_wd, rt_wd = get_rank_rating_formatted(df_wd, ch)
+        rk_we, rt_we = get_rank_rating_formatted(df_we, ch)
+        rk_all, rt_all = get_rank_rating_formatted(df_all, ch)
+        rk_acc, rt_acc = get_rank_rating_formatted(df_acc4, ch)
+        ip_tv, sky = channel_numbers[ch]
+        
+        row_cls = "sbs-row" if ch == 'SBS Biz' else ""
+        ch_weight = "bold" if ch == 'SBS Biz' else "normal"
+        
+        html_4 += f"""
+            <tr class="{row_cls}">
+                <td style="font-weight: {ch_weight};">{ch}</td>
+                <td>{rk_wd}</td><td>{rt_wd}</td>
+                <td>{rk_we}</td><td>{rt_we}</td>
+                <td>{rk_all}</td><td class="col-group-end">{rt_all}</td>
+                <td>{rk_acc}</td><td class="col-group-end">{rt_acc}</td>
+                <td>{ip_tv}</td><td>{sky}</td>
+            </tr>
+        """
+        
+    html_4 += "</tbody></table></div>"
+    
+    st.markdown(html_4, unsafe_allow_html=True)
