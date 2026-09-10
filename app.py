@@ -33,7 +33,7 @@ def parse_pasted_data(pasted_text):
     return pd.DataFrame(data_list)
 
 # ==========================================
-# 1️⃣ [첫 번째 기능] 시청률 분석
+# 1️⃣ [첫 번째 기능] 시청률 분석 (엑셀 양식 완벽 재현)
 # ==========================================
 st.header("1️⃣ 채널 순위 및 시청률")
 st.write("각 일자별 데이터와 누적 데이터를 넣으면 통합 표를 생성합니다. (날짜를 입력하지 않은 칸은 표에서 제외됩니다.)")
@@ -349,7 +349,7 @@ if run2:
 st.divider()
 
 # ==========================================
-# 3️⃣ [세 번째 기능] 시청률 추이 그래프
+# 3️⃣ [세 번째 기능] 시청률 추이 그래프 (엑셀 업로드 방식)
 # ==========================================
 st.header("3️⃣ 시청률 추이 그래프")
 st.write("시청률 엑셀 파일을 업로드해 주세요. (시간대 그룹별로 그래프가 각각 생성됩니다)")
@@ -427,7 +427,7 @@ if run3:
                 st.warning("유효한 데이터를 찾지 못했습니다. 파일 양식을 확인해 주세요.")
                 
         except Exception as e:
-            st.error(f"파일을 분석할 수 분석할 수 없습니다. (상세 오류: {e})")
+            st.error(f"파일을 분석할 수 없습니다. (상세 오류: {e})")
     else:
         st.warning("엑셀 파일을 먼저 업로드해 주세요.")
 
@@ -503,14 +503,33 @@ if run4:
     df_all = parse_pasted_data(paste_all) if paste_all.strip() else pd.DataFrame()
     df_acc4 = parse_pasted_data(paste_acc4) if paste_acc4.strip() else pd.DataFrame()
     
-    # [핵심] 원본 데이터에 "MTN" 글자가 포함되어 있으면 알아서 "MTN 머니투데이"로 연결해주는 스마트 검색 추가
+    # [핵심] 원본 데이터에 띄어쓰기가 어떻게 되어있든 무시하고 찰떡같이 채널을 찾아주는 유연한 검색 로직 
     def get_target_row(df, ch):
         if df.empty:
             return pd.DataFrame()
-        if ch == 'MTN 머니투데이':
-            return df[df['채널명'].astype(str).str.contains('MTN|머니투데이', case=False, na=False)]
+            
+        # 모든 채널명의 공백을 제거하고 소문자로 변환하여 비교합니다.
+        clean_df_ch = df['채널명'].astype(str).str.replace(" ", "").str.lower()
+        
+        if ch == 'SBS Biz':
+            return df[clean_df_ch.str.contains('sbsbiz', na=False)]
+        elif ch == 'MTN 머니투데이':
+            return df[clean_df_ch.str.contains('mtn|머니투데이', na=False)]
+        elif ch == '한국경제TV':
+            return df[clean_df_ch.str.contains('한국경제', na=False)]
+        elif ch == '매일경제TV':
+            return df[clean_df_ch.str.contains('매일경제', na=False)]
+        elif ch == '토마토TV':
+            return df[clean_df_ch.str.contains('토마토', na=False)]
+        elif ch == '서울경제TV':
+            return df[clean_df_ch.str.contains('서울경제', na=False)]
+        elif ch == '연합뉴스경제TV':
+            return df[clean_df_ch.str.contains('연합뉴스경제', na=False)]
+        elif ch == '이데일리TV':
+            return df[clean_df_ch.str.contains('이데일리', na=False)]
         else:
-            return df[df['채널명'].astype(str) == ch]
+            clean_ch = str(ch).replace(" ", "").lower()
+            return df[clean_df_ch == clean_ch]
 
     def get_rank_rating_formatted(df, ch):
         res = get_target_row(df, ch)
