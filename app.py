@@ -427,7 +427,7 @@ if run3:
                 st.warning("유효한 데이터를 찾지 못했습니다. 파일 양식을 확인해 주세요.")
                 
         except Exception as e:
-            st.error(f"파일을 분석할 수 없습니다. (상세 오류: {e})")
+            st.error(f"파일을 분석할 수 분석할 수 없습니다. (상세 오류: {e})")
     else:
         st.warning("엑셀 파일을 먼저 업로드해 주세요.")
 
@@ -503,18 +503,25 @@ if run4:
     df_all = parse_pasted_data(paste_all) if paste_all.strip() else pd.DataFrame()
     df_acc4 = parse_pasted_data(paste_acc4) if paste_acc4.strip() else pd.DataFrame()
     
+    # [핵심] 원본 데이터에 "MTN" 글자가 포함되어 있으면 알아서 "MTN 머니투데이"로 연결해주는 스마트 검색 추가
+    def get_target_row(df, ch):
+        if df.empty:
+            return pd.DataFrame()
+        if ch == 'MTN 머니투데이':
+            return df[df['채널명'].astype(str).str.contains('MTN|머니투데이', case=False, na=False)]
+        else:
+            return df[df['채널명'].astype(str) == ch]
+
     def get_rank_rating_formatted(df, ch):
-        if not df.empty:
-            res = df[df['채널명'] == ch]
-            if not res.empty:
-                return f"{res.iloc[0]['순위']}위", f"{res.iloc[0]['시청률']:.3f}"
+        res = get_target_row(df, ch)
+        if not res.empty:
+            return f"{res.iloc[0]['순위']}위", f"{res.iloc[0]['시청률']:.3f}"
         return "-", "-"
         
     def get_combined_stat(df, ch):
-        if not df.empty:
-            res = df[df['채널명'] == ch]
-            if not res.empty:
-                return f"{res.iloc[0]['순위']}위 ({res.iloc[0]['시청률']:.3f})"
+        res = get_target_row(df, ch)
+        if not res.empty:
+            return f"{res.iloc[0]['순위']}위 ({res.iloc[0]['시청률']:.3f})"
         return "-"
     
     st.info("💡 **팁:** 표 전체를 마우스로 드래그하여 복사(Ctrl+C)한 뒤, 엑셀이나 메일에 붙여넣기(Ctrl+V) 하시면 테두리와 색상 양식이 그대로 복사됩니다!")
@@ -524,7 +531,6 @@ if run4:
     val_prev_we = get_combined_stat(df_we, 'SBS Biz')
     val_acc_all = get_combined_stat(df_acc4, 'SBS Biz')
 
-    # HTML 렌더링 시 발생하는 마크다운 착각을 막기 위한 전체 변수 선언
     html_4 = ""
 
     css_4 = """
@@ -666,7 +672,6 @@ if run4:
         
     html_4 += "</tbody></table></div>"
     
-    # [핵심] 코드가 깨지지 않도록 모든 줄바꿈과 띄어쓰기를 쫙 펴주는 강제 정렬
     final_html_4 = "\n".join(line.strip() for line in html_4.split("\n"))
     
     st.markdown(final_html_4, unsafe_allow_html=True)
