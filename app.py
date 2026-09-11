@@ -33,7 +33,7 @@ def parse_pasted_data(pasted_text):
     return pd.DataFrame(data_list)
 
 # ==========================================
-# 1️⃣ [첫 번째 기능] 시청률 분석 (엑셀 양식 완벽 재현)
+# 1️⃣ [첫 번째 기능] 시청률 분석
 # ==========================================
 st.header("1️⃣ 채널 순위 및 시청률")
 st.write("각 일자별 데이터와 누적 데이터를 넣으면 통합 표를 생성합니다. (날짜를 입력하지 않은 칸은 표에서 제외됩니다.)")
@@ -111,7 +111,6 @@ if run1:
         color: #000;
         margin-top: 5px;
         background-color: #fff;
-        flex-shrink: 0;
     }
     .report-table th {
         background-color: #dce6f2;
@@ -167,24 +166,6 @@ if run1:
         border-left: 1px solid #000 !important;
         border-right: 1px solid #000 !important;
     }
-    .report-layout {
-        display: inline-flex;
-        flex-direction: row;
-        align-items: flex-start;
-        gap: 20px;
-        width: max-content;
-        min-width: 100%;
-    }
-    .report-table-wrap {
-        flex: 0 0 auto;
-    }
-    .right-ranking {
-        flex: 0 0 auto;
-        min-width: 250px;
-        width: 250px;
-        overflow: visible;
-        white-space: nowrap;
-    }
     </style>
     """
     html_str = "\n".join(line.strip() for line in raw_css.split("\n"))
@@ -223,61 +204,38 @@ if run1:
         
     html_str += "</tbody></table>"
     
+    # 우측 텍스트 인라인 스타일 지정 (복사 붙여넣기 호환성 유지)
+    right_style = "font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px; white-space: nowrap; line-height: 1.5;"
     right_raw = ""
+    
     if not df_acc.empty:
         range_df = df_acc[(df_acc['순위'] >= 12) & (df_acc['순위'] <= 18)]
         if not range_df.empty:
-            right_raw += """
-            <div class="right-ranking"
-                 style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-                        font-size: 13.5px;
-                        color: #000;
-                        padding-top: 5px;
-                        white-space: nowrap;">
-            """
+            right_raw += f"<div style=\"{right_style}\">"
             right_raw += "<span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>"
             for _, row in range_df.iterrows():
                 right_raw += f"{row['순위']}위 {row['채널명']} ({row['시청률']:.3f})<br>"
             right_raw += "</div>"
         else:
-            right_raw = """
-            <div class="right-ranking"
-                 style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-                        font-size: 13.5px;
-                        color: #000;
-                        padding-top: 5px;
-                        white-space: nowrap;">
-                <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
-                해당 순위 데이터가 없습니다.
-            </div>
-            """
+            right_raw = f"<div style=\"{right_style}\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>해당 순위 데이터가 없습니다.</div>"
     else:
-        right_raw = """
-        <div class="right-ranking"
-             style="font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
-                    font-size: 13.5px;
-                    color: #000;
-                    padding-top: 5px;
-                    white-space: nowrap;">
-            <span style="font-weight: bold;">[근접 순위 채널 (26년 누적)]</span><br><br>
-            ⚠️ 26년 누적 데이터를 입력해 주세요.
-        </div>
-        """
+        right_raw = f"<div style=\"{right_style}\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>⚠️ 26년 누적 데이터를 입력해 주세요.</div>"
 
+    # [복구 핵심] 엑셀 복사/붙여넣기를 완벽하게 지원하는 '투명한 바깥쪽 뼈대 표(Master Table)' 구조 복구
     layout_raw = f"""
-    <div style="
-        width: 100%;
-        overflow-x: auto;
-        overflow-y: hidden;
-        padding: 10px 0px;
-        background-color: #fff;
-    ">
-        <div class="report-layout">
-            <div class="report-table-wrap">
-                {html_str}
-            </div>
-            {right_raw}
-        </div>
+    <div style="width: 100%; overflow-x: auto; padding: 10px 0px; background-color: #fff;">
+        <table style="border-collapse: collapse; border: none; background-color: #fff; margin: 0; padding: 0;">
+            <tbody>
+                <tr>
+                    <td style="border: none !important; padding: 0; vertical-align: top; background-color: #fff;">
+                        {html_str}
+                    </td>
+                    <td style="border: none !important; padding: 0 0 0 25px; vertical-align: top; background-color: #fff;">
+                        {right_raw}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
     """
     final_layout = "\n".join(line.strip() for line in layout_raw.split("\n"))
@@ -349,7 +307,7 @@ if run2:
 st.divider()
 
 # ==========================================
-# 3️⃣ [세 번째 기능] 시청률 추이 그래프 (엑셀 업로드 방식)
+# 3️⃣ [세 번째 기능] 시청률 추이 그래프
 # ==========================================
 st.header("3️⃣ 시청률 추이 그래프")
 st.write("시청률 엑셀 파일을 업로드해 주세요. (시간대 그룹별로 그래프가 각각 생성됩니다)")
@@ -427,7 +385,7 @@ if run3:
                 st.warning("유효한 데이터를 찾지 못했습니다. 파일 양식을 확인해 주세요.")
                 
         except Exception as e:
-            st.error(f"파일을 분석할 수 없습니다. (상세 오류: {e})")
+            st.error(f"파일을 분석할 수 분석할 수 없습니다. (상세 오류: {e})")
     else:
         st.warning("엑셀 파일을 먼저 업로드해 주세요.")
 
@@ -503,12 +461,10 @@ if run4:
     df_all = parse_pasted_data(paste_all) if paste_all.strip() else pd.DataFrame()
     df_acc4 = parse_pasted_data(paste_acc4) if paste_acc4.strip() else pd.DataFrame()
     
-    # [핵심] 원본 데이터에 띄어쓰기가 어떻게 되어있든 무시하고 찰떡같이 채널을 찾아주는 유연한 검색 로직 
     def get_target_row(df, ch):
         if df.empty:
             return pd.DataFrame()
             
-        # 모든 채널명의 공백을 제거하고 소문자로 변환하여 비교합니다.
         clean_df_ch = df['채널명'].astype(str).str.replace(" ", "").str.lower()
         
         if ch == 'SBS Biz':
