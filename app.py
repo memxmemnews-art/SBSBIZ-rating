@@ -204,7 +204,6 @@ if run1:
         
     html_str += "</tbody></table>"
     
-    # 우측 텍스트 인라인 스타일 지정 (복사 붙여넣기 호환성 유지)
     right_style = "font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 13.5px; color: #000; padding-top: 5px; white-space: nowrap; line-height: 1.5;"
     right_raw = ""
     
@@ -221,7 +220,6 @@ if run1:
     else:
         right_raw = f"<div style=\"{right_style}\"><span style=\"font-weight: bold;\">[근접 순위 채널 (26년 누적)]</span><br><br>⚠️ 26년 누적 데이터를 입력해 주세요.</div>"
 
-    # [복구 핵심] 엑셀 복사/붙여넣기를 완벽하게 지원하는 '투명한 바깥쪽 뼈대 표(Master Table)' 구조 복구
     layout_raw = f"""
     <div style="width: 100%; overflow-x: auto; padding: 10px 0px; background-color: #fff;">
         <table style="border-collapse: collapse; border: none; background-color: #fff; margin: 0; padding: 0;">
@@ -326,6 +324,9 @@ if run3:
             df3 = pd.read_excel(upload_3, header=3)
             df3.columns = ['시간대 그룹', '시간', '시청률']
             
+            # [핵심 수정 1] 같은 이름의 프로그램이 여러 번(토/일 등) 나와도 합쳐지지 않도록,
+            # 빈칸을 채우기(ffill) 전에 새로운 프로그램명이 등장할 때마다 고유 블록 번호를 먼저 부여합니다.
+            df3['block_id'] = df3['시간대 그룹'].notna().cumsum()
             df3['시간대 그룹'] = df3['시간대 그룹'].ffill()
             
             df3 = df3.dropna(subset=['시간', '시청률'])
@@ -333,12 +334,31 @@ if run3:
             df3 = df3.dropna(subset=['시청률'])
             
             if not df3.empty:
-                groups = df3['시간대 그룹'].unique()
+                # [핵심 수정 2] 만약 엑셀에 두 회차가 빈칸 구분 없이 연속으로 붙어있더라도,
+                # 시간이 이전 행보다 작아지면(예: 토요일 09:59 -> 일요일 09:00) 새로운 회차로 인식해 쪼개줍니다.
+                df3['시간_str'] = df3['시간'].astype(str).str.strip()
+                df3['time_jump'] = (df3['시간_str'] < df3.groupby('block_id')['시간_str'].shift(1)).fillna(False)
+                df3['sub_id'] = df3.groupby('block_id')['time_jump'].cumsum()
                 
-                for grp in groups:
-                    st.subheader(f"📈 {grp} 시청률 추이")
+                # 최종적으로 완벽히 분리된 단위별로 각각의 그래프를 그립니다.
+                blocks = df3.groupby(['block_id', 'sub_id'], sort=False)
+                
+                # 동일한 프로그램명이 여러 개일 때 순번(1, 2...)을 붙여주기 위한 카운트 계산
+                name_counts = df3[['block_id', 'sub_id', '시간대 그룹']].drop_duplicates()['시간대 그룹'].value_counts()
+                name_tracker = {}
+                
+                for _, df_grp in blocks:
+                    df_grp = df_grp.copy().reset_index(drop=True)
+                    grp_name = df_grp['시간대 그룹'].iloc[0]
                     
-                    df_grp = df3[df3['시간대 그룹'] == grp].copy().reset_index(drop=True)
+                    # 동일한 이름의 방송이 2개 이상이면 제목에 (1), (2) 표시
+                    if name_counts[grp_name] > 1:
+                        name_tracker[grp_name] = name_tracker.get(grp_name, 0) + 1
+                        display_title = f"📈 {grp_name} ({name_tracker[grp_name]}) 시청률 추이"
+                    else:
+                        display_title = f"📈 {grp_name} 시청률 추이"
+                        
+                    st.subheader(display_title)
                     
                     fig, ax = plt.subplots(figsize=(8, 3.15))
                     
@@ -385,7 +405,7 @@ if run3:
                 st.warning("유효한 데이터를 찾지 못했습니다. 파일 양식을 확인해 주세요.")
                 
         except Exception as e:
-            st.error(f"파일을 분석할 수 분석할 수 없습니다. (상세 오류: {e})")
+            st.error(f"파일을 분석할 수 없습니다. (상세 오류: {e})")
     else:
         st.warning("엑셀 파일을 먼저 업로드해 주세요.")
 
