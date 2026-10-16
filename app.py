@@ -324,8 +324,6 @@ if run3:
             df3 = pd.read_excel(upload_3, header=3)
             df3.columns = ['시간대 그룹', '시간', '시청률']
             
-            # [핵심 수정 1] 같은 이름의 프로그램이 여러 번(토/일 등) 나와도 합쳐지지 않도록,
-            # 빈칸을 채우기(ffill) 전에 새로운 프로그램명이 등장할 때마다 고유 블록 번호를 먼저 부여합니다.
             df3['block_id'] = df3['시간대 그룹'].notna().cumsum()
             df3['시간대 그룹'] = df3['시간대 그룹'].ffill()
             
@@ -334,16 +332,12 @@ if run3:
             df3 = df3.dropna(subset=['시청률'])
             
             if not df3.empty:
-                # [핵심 수정 2] 만약 엑셀에 두 회차가 빈칸 구분 없이 연속으로 붙어있더라도,
-                # 시간이 이전 행보다 작아지면(예: 토요일 09:59 -> 일요일 09:00) 새로운 회차로 인식해 쪼개줍니다.
                 df3['시간_str'] = df3['시간'].astype(str).str.strip()
                 df3['time_jump'] = (df3['시간_str'] < df3.groupby('block_id')['시간_str'].shift(1)).fillna(False)
                 df3['sub_id'] = df3.groupby('block_id')['time_jump'].cumsum()
                 
-                # 최종적으로 완벽히 분리된 단위별로 각각의 그래프를 그립니다.
                 blocks = df3.groupby(['block_id', 'sub_id'], sort=False)
                 
-                # 동일한 프로그램명이 여러 개일 때 순번(1, 2...)을 붙여주기 위한 카운트 계산
                 name_counts = df3[['block_id', 'sub_id', '시간대 그룹']].drop_duplicates()['시간대 그룹'].value_counts()
                 name_tracker = {}
                 
@@ -351,7 +345,6 @@ if run3:
                     df_grp = df_grp.copy().reset_index(drop=True)
                     grp_name = df_grp['시간대 그룹'].iloc[0]
                     
-                    # 동일한 이름의 방송이 2개 이상이면 제목에 (1), (2) 표시
                     if name_counts[grp_name] > 1:
                         name_tracker[grp_name] = name_tracker.get(grp_name, 0) + 1
                         display_title = f"📈 {grp_name} ({name_tracker[grp_name]}) 시청률 추이"
@@ -460,20 +453,16 @@ with btn_col4_2:
     st.button("데이터 지우기 🗑️", key="clear4", on_click=clear_texts, args=(keys_to_clear4,), use_container_width=True)
 
 if run4:
+    # [수정] 요청하신 4개의 경제 채널만 남기도록 리스트 축소
     target_channels_4 = [
-        'SBS Biz', '한국경제TV', 'MTN 머니투데이', '매일경제TV', 
-        '토마토TV', '서울경제TV', '연합뉴스경제TV', '이데일리TV'
+        'SBS Biz', '한국경제TV', 'MTN 머니투데이', '매일경제TV'
     ]
     
     channel_numbers = {
         'SBS Biz': ['26, 25, 27번', '25번'],
         '한국경제TV': ['151, 180, 162번', '151번'],
         'MTN 머니투데이': ['152, 181, 163번', '152번'],
-        '매일경제TV': ['153, 182, 164번', '153번'],
-        '토마토TV': ['150, 185, 165번', '154번'],
-        '서울경제TV': ['156, 184, 167번', '156번'],
-        '연합뉴스경제TV': ['157, 187, 171번', '157번'],
-        '이데일리TV': ['155, 183, 166번', '155번']
+        '매일경제TV': ['153, 182, 164번', '153번']
     }
     
     df_wd = parse_pasted_data(paste_wd) if paste_wd.strip() else pd.DataFrame()
@@ -495,14 +484,6 @@ if run4:
             return df[clean_df_ch.str.contains('한국경제', na=False)]
         elif ch == '매일경제TV':
             return df[clean_df_ch.str.contains('매일경제', na=False)]
-        elif ch == '토마토TV':
-            return df[clean_df_ch.str.contains('토마토', na=False)]
-        elif ch == '서울경제TV':
-            return df[clean_df_ch.str.contains('서울경제', na=False)]
-        elif ch == '연합뉴스경제TV':
-            return df[clean_df_ch.str.contains('연합뉴스경제', na=False)]
-        elif ch == '이데일리TV':
-            return df[clean_df_ch.str.contains('이데일리', na=False)]
         else:
             clean_ch = str(ch).replace(" ", "").lower()
             return df[clean_df_ch == clean_ch]
